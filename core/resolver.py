@@ -12,8 +12,9 @@ import config as cfg
 
 log = logging.getLogger(__name__)
 
-MAX_POLL_ATTEMPTS = 20
-POLL_INTERVAL = 15  # seconds between retries
+MAX_POLL_ATTEMPTS = 40  # 20 x 15s + 20 x 30s = ~10 minutes total
+POLL_INTERVAL_FAST = 15  # seconds — used for attempts 1-20
+POLL_INTERVAL_SLOW = 30  # seconds — used for attempts 21-40
 
 
 async def check_resolution(slug: str) -> tuple[str | None, bool]:
@@ -61,6 +62,9 @@ async def check_resolution(slug: str) -> tuple[str | None, bool]:
 async def resolve_slot(slug: str) -> str | None:
     """Poll until the slot resolves or we exhaust retries.
 
+    First 20 attempts poll every 15s; remaining attempts poll every 30s
+    to avoid hammering the API. Total window: ~10 minutes.
+
     Returns the winning side ("Up" or "Down") or None if unresolved.
     """
     for attempt in range(1, MAX_POLL_ATTEMPTS + 1):
@@ -69,7 +73,8 @@ async def resolve_slot(slug: str) -> str | None:
             return winner
         log.debug("Slot %s not yet resolved (attempt %d/%d)", slug, attempt, MAX_POLL_ATTEMPTS)
         if attempt < MAX_POLL_ATTEMPTS:
-            await asyncio.sleep(POLL_INTERVAL)
+            interval = POLL_INTERVAL_FAST if attempt <= 20 else POLL_INTERVAL_SLOW
+            await asyncio.sleep(interval)
 
     log.warning("Slot %s did not resolve after %d attempts", slug, MAX_POLL_ATTEMPTS)
     return None

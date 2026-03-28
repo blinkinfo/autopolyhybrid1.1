@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
@@ -63,6 +64,21 @@ def _uptime() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Safe edit helper — silently ignores 'Message is not modified' errors
+# ---------------------------------------------------------------------------
+
+async def _safe_edit(query, text, reply_markup=None, parse_mode="HTML"):
+    """Edit a message, silently ignoring 'not modified' errors."""
+    try:
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+    except BadRequest as e:
+        if "not modified" in str(e).lower():
+            pass  # Content unchanged — not an error
+        else:
+            raise
+
+
+# ---------------------------------------------------------------------------
 # /start
 # ---------------------------------------------------------------------------
 
@@ -110,7 +126,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     target = update.message or update.callback_query.message
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text, reply_markup=back_to_menu(), parse_mode="HTML")
+        await _safe_edit(update.callback_query, text, reply_markup=back_to_menu())
     else:
         await target.reply_text(text, reply_markup=back_to_menu(), parse_mode="HTML")
 
@@ -128,7 +144,7 @@ async def _render_signals(update: Update, limit: int | None, active: str) -> Non
     kb = signal_filter_row(active)
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        await _safe_edit(update.callback_query, text, reply_markup=kb)
     else:
         await update.message.reply_text(text, reply_markup=kb, parse_mode="HTML")
 
@@ -151,7 +167,7 @@ async def _render_trades(update: Update, limit: int | None, active: str) -> None
     kb = trade_filter_row(active)
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        await _safe_edit(update.callback_query, text, reply_markup=kb)
     else:
         await update.message.reply_text(text, reply_markup=kb, parse_mode="HTML")
 
@@ -173,7 +189,7 @@ async def cmd_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     kb = settings_keyboard(autotrade, trade_amount)
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        await _safe_edit(update.callback_query, text, reply_markup=kb)
     else:
         await update.message.reply_text(text, reply_markup=kb, parse_mode="HTML")
 
@@ -187,7 +203,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = format_help()
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text, reply_markup=back_to_menu(), parse_mode="HTML")
+        await _safe_edit(update.callback_query, text, reply_markup=back_to_menu())
     else:
         await update.message.reply_text(text, reply_markup=back_to_menu(), parse_mode="HTML")
 
@@ -204,7 +220,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if data == "cmd_menu":
         await query.answer()
         text = "\U0001f916 <b>AutoPoly Menu</b>\n\nSelect an option:"
-        await query.edit_message_text(text, reply_markup=main_menu(), parse_mode="HTML")
+        await _safe_edit(query, text, reply_markup=main_menu())
 
     elif data == "cmd_status":
         await cmd_status(update, context)
@@ -245,10 +261,10 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     elif data == "change_amount":
         await query.answer()
-        await query.edit_message_text(
+        await _safe_edit(
+            query,
             "\U0001f4b5 <b>Set Trade Amount</b>\n\n"
             "Type the new amount in USDC (e.g. <code>2.50</code>):",
-            parse_mode="HTML",
         )
         context.user_data["awaiting_amount"] = True
 
@@ -307,3 +323,9 @@ def register(application) -> None:
     application.add_handler(CommandHandler("help", cmd_help))
     application.add_handler(CallbackQueryHandler(callback_router))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
+
+    async def _error_handler(update, context):
+        log.error("Telegram error: %s", context.error)
+        # Don't re-raise — just log it so the bot keeps running
+
+    application.add_error_handler(_error_handler)
