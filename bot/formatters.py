@@ -138,7 +138,7 @@ def format_trade_unmatched(
     return (
         "\u274c <b>Trade UNMATCHED</b>\n"
         "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-        f"\u2502 {side_emoji} Side: {side}  \u23f0 {slot_label} UTC\n"
+        f"\u2502 {side_emoji} Side: {side}  \u23f0 {slot_label}\n"
         f"\u2502 \U0001f504 Attempts: {attempts}\n"
         f"\u2502 \U0001f4cb Reason: {reason}\n"
         "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
@@ -155,7 +155,7 @@ def format_trade_aborted(
     return (
         "\u26d4 <b>Trade ABORTED</b>\n"
         "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-        f"\u2502 {side_emoji} Side: {side}  \u23f0 {slot_label} UTC\n"
+        f"\u2502 {side_emoji} Side: {side}  \u23f0 {slot_label}\n"
         f"\u2502 \U0001f4cb Reason: {reason}\n"
         "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
     )
@@ -172,7 +172,7 @@ def format_trade_retrying(
     side_emoji = "\U0001f4c8" if side == "Up" else "\U0001f4c9"
     return (
         f"\U0001f504 <b>Trade retrying</b> (attempt {attempt}/{max_attempts}) "
-        f"{side_emoji} {side} {slot_label} UTC \u2014 {reason}"
+        f"{side_emoji} {side} {slot_label} \u2014 {reason}"
     )
 
 
